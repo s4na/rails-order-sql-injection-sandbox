@@ -23,29 +23,45 @@ ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:"
 ActiveRecord::Base.logger = Logger.new(STDOUT)
 
 ActiveRecord::Schema.define do
-  create_table :posts, force: true do |t|
-  end
-
-  create_table :comments, force: true do |t|
-    t.integer :post_id
+  create_table :users, force: true do |t|
+    t.text :name
+    t.text :email
   end
 end
 
-class Post < ActiveRecord::Base
-  has_many :comments
-end
-
-class Comment < ActiveRecord::Base
-  belongs_to :post
+class User < ActiveRecord::Base
 end
 
 class BugTest < Minitest::Test
-  def test_association_stuff
-    post = Post.create!
-    post.comments << Comment.create!
+  def test_sql_injection
+    User.create!(name: 'hoge', email: 'hoge@example.com')
 
-    assert_equal 1, post.comments.count
-    assert_equal 1, Comment.count
-    assert_equal post.id, Comment.first.post.id
+    p User.all
+
+    # 参考: https://rails-sqli.org/
+    p User.order('email, 1').to_sql
+    p User.order('email, 1')
+    key = 'email'
+    value = ', 1'
+    # orderなのに、Userのカラムを取得してしまう
+    p User.order("#{key} #{value}").to_sql
+    p User.order("#{key} #{value}")
+
+    # こうすればSQL injectionが無効化されて、埋め込まれたSQLが実行されなくなる
+    p User.order(key => value).to_sql
+    p User.order(key => value)
+    # Error:
+    # BugTest#test_sql_injection:
+    # ArgumentError: Direction ", 1" is invalid. Valid directions are: [:asc, :desc, :ASC, :DESC, "asc", "desc", "ASC", "DESC"]
+    #     /Users/nabetani.satoshi/.rbenv/versions/2.7.2/lib/ruby/gems/2.7.0/bundler/gems/rails-168ddaa08a63/activerecord/lib/active_record/relation/query_methods.rb:1475:in `block (2 levels) in validate_order_args'
+    #     /Users/nabetani.satoshi/.rbenv/versions/2.7.2/lib/ruby/gems/2.7.0/bundler/gems/rails-168ddaa08a63/activerecord/lib/active_record/relation/query_methods.rb:1473:in `each'
+    #     /Users/nabetani.satoshi/.rbenv/versions/2.7.2/lib/ruby/gems/2.7.0/bundler/gems/rails-168ddaa08a63/activerecord/lib/active_record/relation/query_methods.rb:1473:in `block in validate_order_args'
+    #     /Users/nabetani.satoshi/.rbenv/versions/2.7.2/lib/ruby/gems/2.7.0/bundler/gems/rails-168ddaa08a63/activerecord/lib/active_record/relation/query_methods.rb:1471:in `each'
+    #     /Users/nabetani.satoshi/.rbenv/versions/2.7.2/lib/ruby/gems/2.7.0/bundler/gems/rails-168ddaa08a63/activerecord/lib/active_record/relation/query_methods.rb:1471:in `validate_order_args'
+    #     /Users/nabetani.satoshi/.rbenv/versions/2.7.2/lib/ruby/gems/2.7.0/bundler/gems/rails-168ddaa08a63/activerecord/lib/active_record/relation/query_methods.rb:1488:in `preprocess_order_args'
+    #     /Users/nabetani.satoshi/.rbenv/versions/2.7.2/lib/ruby/gems/2.7.0/bundler/gems/rails-168ddaa08a63/activerecord/lib/active_record/relation/query_methods.rb:385:in `order!'
+    #     /Users/nabetani.satoshi/.rbenv/versions/2.7.2/lib/ruby/gems/2.7.0/bundler/gems/rails-168ddaa08a63/activerecord/lib/active_record/relation/query_methods.rb:380:in `order'
+    #     /Users/nabetani.satoshi/.rbenv/versions/2.7.2/lib/ruby/gems/2.7.0/bundler/gems/rails-168ddaa08a63/activerecord/lib/active_record/querying.rb:22:in `order'
+    #     active_record_main.rb:65:in `test_sql_injection'
   end
 end
