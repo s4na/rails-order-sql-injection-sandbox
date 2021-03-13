@@ -41,15 +41,16 @@ class BugTest < Minitest::Test
     # 参考: https://rails-sqli.org/
     p User.order('email, 1').to_sql
     p User.order('email, 1')
-    key = 'email'
-    value = ', 1'
+    column = 'email'
+    direction = ', 1'
     # orderなのに、Userのカラムを取得してしまう
-    p User.order("#{key} #{value}").to_sql
-    p User.order("#{key} #{value}")
+    p User.order("#{column} #{direction}").to_sql
+    p User.order("#{column} #{direction}")
 
+    p '~' * 100
     # こうすればSQL injectionが無効化されて、埋め込まれたSQLが実行されなくなる
-    p User.order(key => value).to_sql
-    p User.order(key => value)
+    p User.order(column => direction).to_sql
+    p User.order(column => direction)
     # Error:
     # BugTest#test_sql_injection:
     # ArgumentError: Direction ", 1" is invalid. Valid directions are: [:asc, :desc, :ASC, :DESC, "asc", "desc", "ASC", "DESC"]
